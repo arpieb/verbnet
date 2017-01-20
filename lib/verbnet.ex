@@ -11,7 +11,9 @@ defmodule VerbNet do
     # Note that we're not error-trapping.
     # If the VerbNet XML fails to parse, we treat that as a compile error.
     {:ok, vn_class, _rest} = File.read!(fname) |> :erlsom.simple_form()
-    #IO.inspect(vn_class)
+    vn_class
+    |> VerbNet.Compile.simpleform_to_map()
+    |> IO.inspect()
 
     # Now start tearing apart the parsed XML to generate our functions.
   end
