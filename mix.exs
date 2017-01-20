@@ -28,6 +28,8 @@ defmodule VerbNet.Mixfile do
   #
   # Type "mix help deps" for more examples and options
   defp deps do
-    []
+    [
+      {:erlsom, "~> 1.4"},
+    ]
   end
 end

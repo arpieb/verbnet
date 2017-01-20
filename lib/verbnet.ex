@@ -3,16 +3,16 @@ defmodule VerbNet do
   Documentation for VerbNet.
   """
 
-  @doc """
-  Hello world.
+  # Some handy module attributes for locating assets.
+  @external_resource verbnet_xml_path = Path.join([__DIR__, "..", "assets", "verbnet"])
 
-  ## Examples
+  # Load and parse each VerbNet class XML.
+  for fname <- Path.wildcard(Path.join([verbnet_xml_path, "*.xml"])) do
+    # Note that we're not error-trapping.
+    # If the VerbNet XML fails to parse, we treat that as a compile error.
+    {:ok, vn_class, _rest} = File.read!(fname) |> :erlsom.simple_form()
+    #IO.inspect(vn_class)
 
-      iex> VerbNet.hello
-      :world
-
-  """
-  def hello do
-    :world
+    # Now start tearing apart the parsed XML to generate our functions.
   end
 end
