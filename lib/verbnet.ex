@@ -7,14 +7,17 @@ defmodule VerbNet do
   @external_resource verbnet_xml_path = Path.join([__DIR__, "..", "assets", "verbnet"])
 
   # Load and parse each VerbNet class XML.
+  #for fname <- Enum.take(Path.wildcard(Path.join([verbnet_xml_path, "*.xml"])), 1) do
   for fname <- Path.wildcard(Path.join([verbnet_xml_path, "*.xml"])) do
     # Note that we're not error-trapping.
     # If the VerbNet XML fails to parse, we treat that as a compile error.
     {:ok, vn_class, _rest} = File.read!(fname) |> :erlsom.simple_form()
-    vn_class
-    |> VerbNet.Compile.simpleform_to_map()
-    |> IO.inspect()
 
-    # Now start tearing apart the parsed XML to generate our functions.
+    # Postprocess the erlsom tuple into values we can unquote.
+    {:vnclass, %{id: vnclid}, classdef} = VerbNet.Compile.simpleform_to_map(vn_class)
+    classdef_esc = Macro.escape(classdef)
+
+    # Define lookup functions for this VerbNet class.
+    def class(unquote(vnclid)), do: unquote(classdef_esc)
   end
 end
