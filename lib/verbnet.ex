@@ -29,11 +29,20 @@ defmodule VerbNet do
     def frames(unquote(class_id)), do: unquote(frames_esc)
   end
 
+  # Sane default fallbacks in the event a class doesn't match anything we processed above.
   def class(_) do
     []
   end
 
   def members(_) do
+    []
+  end
+
+  def roles(_) do
+    []
+  end
+
+  def frames(_) do
     []
   end
 
