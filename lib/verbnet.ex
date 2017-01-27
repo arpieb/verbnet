@@ -19,10 +19,14 @@ defmodule VerbNet do
 
     sections = VerbNet.Compile.extract_sections(classdef)
     members_esc = sections |> Map.get(:members, %{}) |> Macro.escape()
+    roles_esc = sections |> Map.get(:themroles, %{}) |> Macro.escape()
+    frames_esc = sections |> Map.get(:frames, %{}) |> Macro.escape()
 
     # Define lookup functions for this VerbNet class.
     def class(unquote(class_id)), do: unquote(classdef_esc)
     def members(unquote(class_id)), do: unquote(members_esc)
+    def roles(unquote(class_id)), do: unquote(roles_esc)
+    def frames(unquote(class_id)), do: unquote(frames_esc)
   end
 
   def class(_) do

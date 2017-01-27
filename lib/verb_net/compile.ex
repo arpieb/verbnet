@@ -53,12 +53,55 @@ defmodule VerbNet.Compile do
     |> Map.new()
   end
 
+  # Extract the content from the MEMBERS section of the parsed XML.
   defp extract_section({:members, _attrs, members}) do
-    new_members = Enum.map(members, fn({:member, attrs, _rest}) -> {Map.get(attrs, :name), Map.delete(attrs, :name)} end)
-    {:members, Map.new(new_members)}
+    items = Enum.map(members, fn({:member, attrs, _rest}) -> {attrs.name, Map.delete(attrs, :name)} end)
+    {:members, Map.new(items)}
   end
 
+  # Extract the content from the THEMROLES section of the parsed XML.
+  defp extract_section({:themroles, _attrs, themroles}) do
+    items = Enum.map(themroles, fn({:themrole, attrs, rest}) -> {attrs.type, rest} end)
+    {:themroles, Map.new(items)}
+  end
+
+  # Extract the content from the FRAMES section of the parsed XML.
+  defp extract_section({:frames, _attrs, frames}) do
+    items = Enum.map(frames, fn({:frame, _attrs, rest}) -> extract_frame(rest) end)
+    {:frames, Map.new(items)}
+  end
+
+  # Extract DESCRIPTION from a specific FRAME section.
+  defp extract_section({:description, attrs, _rest}) do
+    {:description, attrs}
+  end
+
+  # Extract EXAMPLES from a specific FRAME section.
+  defp extract_section({:examples, _attrs, rest}) do
+    examples = for {:example, _attrs, text} <- rest, into: [] do
+      Enum.take(text, 1)
+    end
+    {:examples, examples}
+  end
+
+  # Extract SYNTAX from a specific FRAME section.
+  defp extract_section({:syntax, _attrs, rest}) do
+    {:syntax, rest}
+  end
+
+  # Extract SEMANTICS from a specific FRAME section.
+  defp extract_section({:semantics, _attrs, rest}) do
+    {:semantics, rest}
+  end
+
+  # Catchall, produces an empty entry.
   defp extract_section({type, _attrs, _rest}) do
     {type, %{}}
+  end
+
+  # Extract a FRAME element into a tuple we can add to a map.
+  defp extract_frame(frame) do
+    frame = extract_sections(frame)
+    {frame.description.primary, frame}
   end
 end
