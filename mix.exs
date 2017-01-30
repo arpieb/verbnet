@@ -2,12 +2,27 @@ defmodule VerbNet.Mixfile do
   use Mix.Project
 
   def project do
-    [app: :verbnet,
-     version: "0.1.0",
-     elixir: "~> 1.4",
-     build_embedded: Mix.env == :prod,
-     start_permanent: Mix.env == :prod,
-     deps: deps()]
+    [
+      app: :verbnet,
+      version: "0.1.0",
+      elixir: "~> 1.4",
+      build_embedded: Mix.env == :prod,
+      start_permanent: Mix.env == :prod,
+      description: description(),
+      package: package(),
+      deps: deps(),
+
+      # Docs.
+      name: "VerbNet",
+      source_url: "https://github.com/arpieb/verbnet",
+      homepage_url: "https://github.com/arpieb/verbnet",
+      docs: [
+        main: "readme",
+        extras: [
+          "README.md",
+        ]
+      ]
+     ]
   end
 
   # Configuration for the OTP application
@@ -29,7 +44,31 @@ defmodule VerbNet.Mixfile do
   # Type "mix help deps" for more examples and options
   defp deps do
     [
+      {:ex_doc, "~> 0.14.5", only: :dev},
       {:erlsom, "~> 1.4"},
+    ]
+  end
+
+  defp description do
+    """
+    This module provides a lookup interface into the VerbNet semantic mapping dataset.
+    """
+  end
+
+  defp package do
+    [
+      files: [
+        "lib",
+        "mix.exs",
+        "README*",
+        "LICENSE*",
+      ],
+      maintainers: ["Robert Bates"],
+      licenses: ["Apache 2.0"],
+      links: %{
+        "GitHub" => "https://github.com/arpieb/verbnet",
+        "VerbNet" => "https://verbs.colorado.edu/~mpalmer/projects/verbnet.html",
+      },
     ]
   end
 end

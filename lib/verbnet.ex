@@ -1,6 +1,31 @@
 defmodule VerbNet do
-  @moduledoc """
-  Documentation for VerbNet.
+  @moduledoc ~S"""
+  This module provides a lookup interface into the [VerbNet](https://verbs.colorado.edu/~mpalmer/projects/verbnet.html)
+  semantic mapping dataset.
+
+  VerbNet provides a semantic map that allows an NLP solution to take a tokenized and POS tagged sentence and
+  attempt to map the semantics of the sentence (context, thematic roles, etc) using the identified main verb and a POS
+  pattern.
+
+  For example, the sentence, "I wished the children found," would be tokenized + tagged into the pattern
+  "NP V NP ADJ" using [Penn Treebank tags](http://www.clips.ua.ac.be/pages/mbsp-tags) with a main verb of "wish."  This
+  subsequently could be matched to the following VerbNet frame which maps the parts of speech to thematic roles:
+
+  ```
+  "NP V NP ADJ" => %{description: %{descriptionnumber: "8.1",
+      primary: "NP V NP ADJ", secondary: "NP-VEN-NP-OMIT", xtag: "0.2"},
+    examples: [["I wished the children found."]],
+    semantics: [{:pred, %{value: "desire"},
+      [{:args, %{},
+        [{:arg, %{type: "Event", value: "E"}, []},
+         {:arg, %{type: "ThemRole", value: "Experiencer"}, []},
+         {:arg, %{type: "ThemRole", value: "Stimulus"}, []}]}]}],
+    syntax: [{:np, %{value: "Experiencer"}, [{:synrestrs, %{}, []}]},
+     {:verb, %{}, []},
+     {:np, %{value: "Stimulus"},
+      [{:synrestrs, %{},
+        [{:synrestr, %{type: "np_ppart", value: "+"}, []}]}]}]},
+  ```
   """
 
   # Some handy module attributes for locating assets.
@@ -30,42 +55,89 @@ defmodule VerbNet do
   end
 
   @doc ~S"""
-  Return complete map of the entire VerbNet class.
+  Return complete raw map of the entire VerbNet class.
 
   On failed lookup, returns :invalid_class.
   """
   @spec class(class_id :: binary) :: map
-  def class(_class_id) do
-    :invalid_class
+  def class(class_id) do
+    invalid_class(class_id)
   end
 
   @doc ~S"""
   Return list of member maps for VerbNet class, keyed by member name.
 
   On failed lookup, returns :invalid_class.
+
+  ## Examples
+
+      iex> VerbNet.members("wish-62")
+      %{"aim" => %{grouping: "aim.02", wn: "aim%2:31:01"},
+        "dream" => %{grouping: "dream.01", wn: "dream%2:36:00"},
+        "expect" => %{grouping: "expect.01", wn: "expect%2:32:00"},
+        "imagine" => %{grouping: "imagine.02", wn: "imagine%2:31:01"},
+        "intend" => %{grouping: "intend.01", wn: "intend%2:31:00"},
+        "mean" => %{grouping: "mean.02", wn: "mean%2:31:00"},
+        "plan" => %{grouping: "plan.01", wn: "plan%2:31:01"},
+        "propose" => %{grouping: "propose.02", wn: "propose%2:31:01"},
+        "think" => %{grouping: "think.05", wn: "think%2:31:03"},
+        "wish" => %{grouping: "wish.02", wn: "wish%2:37:02"},
+        "yen" => %{grouping: "", wn: "yen%2:37:00"}}
+
+      iex> VerbNet.members("foo")
+      :invalid_class
+
   """
   @spec members(class_id :: binary) :: map
-  def members(_class_id) do
-    :invalid_class
+  def members(class_id) do
+    invalid_class(class_id)
   end
 
   @doc ~S"""
   Return list of thematic role maps for VerbNet class, keyed by role type.
 
   On failed lookup, returns :invalid_class.
+
+  ## Examples
+
+      iex> VerbNet.roles("wish-62")
+      %{"Experiencer" => [{:selrestrs, %{logic: "or"},
+          [{:selrestr, %{type: "animate", value: "+"}, []},
+           {:selrestr, %{type: "organization", value: "+"}, []}]}],
+        "Stimulus" => [{:selrestrs, %{}, []}]}
+
+      iex> VerbNet.roles("foo")
+      :invalid_class
+
   """
   @spec roles(class_id :: binary) :: map
-  def roles(_class_id) do
-    :invalid_class
+  def roles(class_id) do
+    invalid_class(class_id)
   end
 
   @doc ~S"""
   Return list of semantic frames for VerbNet class, keyed by primary POS pattern.
 
   On failed lookup, returns :invalid_class.
+
+  ## Examples
+
+      iex> VerbNet.frames("wish-62") |> Map.keys()
+      ["NP V NP", "NP V NP ADJ", "NP V NP to be ADJ", "NP V S_INF",
+       "NP V for NP S_INF", "NP V that S"]
+
+      iex> VerbNet.frames("foo")
+      :invalid_class
+
   """
   @spec frames(class_id :: binary) :: list
-  def frames(_class_id) do
+  def frames(class_id) do
+    invalid_class(class_id)
+  end
+
+  # Util method to return :invalid_class, yet allow function specs to provide useful help.
+  # Reason: _class_id was generating "arg1" in REPLY help and docs.
+  defp invalid_class(_class_id) do
     :invalid_class
   end
 
