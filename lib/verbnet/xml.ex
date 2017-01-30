@@ -1,6 +1,6 @@
-defmodule VerbNet.Compile do
+defmodule VerbNet.XML do
   @moduledoc ~S"""
-  Utility functions to assist in compiling VerbNet.
+  Utility functions to assist in compiling VerbNet from source XML.
   """
 
   @doc ~S"""

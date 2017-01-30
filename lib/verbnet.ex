@@ -14,10 +14,10 @@ defmodule VerbNet do
     {:ok, vn_class, _rest} = File.read!(fname) |> :erlsom.simple_form()
 
     # Postprocess the erlsom tuple into values we can unquote.
-    {:vnclass, %{id: class_id}, classdef} = VerbNet.Compile.simpleform_to_map(vn_class)
+    {:vnclass, %{id: class_id}, classdef} = VerbNet.XML.simpleform_to_map(vn_class)
     classdef_esc = Macro.escape(classdef)
 
-    sections = VerbNet.Compile.extract_sections(classdef)
+    sections = VerbNet.XML.extract_sections(classdef)
     members_esc = sections |> Map.get(:members, %{}) |> Macro.escape()
     roles_esc = sections |> Map.get(:themroles, %{}) |> Macro.escape()
     frames_esc = sections |> Map.get(:frames, %{}) |> Macro.escape()
@@ -29,21 +29,44 @@ defmodule VerbNet do
     def frames(unquote(class_id)), do: unquote(frames_esc)
   end
 
-  # Sane default fallbacks in the event a class doesn't match anything we processed above.
-  def class(_) do
-    []
+  @doc ~S"""
+  Return complete map of the entire VerbNet class.
+
+  On failed lookup, returns :invalid_class.
+  """
+  @spec class(class_id :: binary) :: map
+  def class(_class_id) do
+    :invalid_class
   end
 
-  def members(_) do
-    []
+  @doc ~S"""
+  Return list of member maps for VerbNet class, keyed by member name.
+
+  On failed lookup, returns :invalid_class.
+  """
+  @spec members(class_id :: binary) :: map
+  def members(_class_id) do
+    :invalid_class
   end
 
-  def roles(_) do
-    []
+  @doc ~S"""
+  Return list of thematic role maps for VerbNet class, keyed by role type.
+
+  On failed lookup, returns :invalid_class.
+  """
+  @spec roles(class_id :: binary) :: map
+  def roles(_class_id) do
+    :invalid_class
   end
 
-  def frames(_) do
-    []
+  @doc ~S"""
+  Return list of semantic frames for VerbNet class, keyed by primary POS pattern.
+
+  On failed lookup, returns :invalid_class.
+  """
+  @spec frames(class_id :: binary) :: list
+  def frames(_class_id) do
+    :invalid_class
   end
 
 end
