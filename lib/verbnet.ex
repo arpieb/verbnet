@@ -2,30 +2,6 @@ defmodule VerbNet do
   @moduledoc ~S"""
   This module provides a lookup interface into the [VerbNet](https://verbs.colorado.edu/~mpalmer/projects/verbnet.html)
   semantic mapping dataset.
-
-  VerbNet provides a semantic map that allows an NLP solution to take a tokenized and POS tagged sentence and
-  attempt to map the semantics of the sentence (context, thematic roles, etc) using the identified main verb and a POS
-  pattern.
-
-  For example, the sentence, "I wished the children found," would be tokenized + tagged into the pattern
-  "NP V NP ADJ" using [Penn Treebank tags](http://www.clips.ua.ac.be/pages/mbsp-tags) with a main verb of "wish."  This
-  subsequently could be matched to the following VerbNet frame which maps the parts of speech to thematic roles:
-
-  ```
-  "NP V NP ADJ" => %{description: %{descriptionnumber: "8.1",
-      primary: "NP V NP ADJ", secondary: "NP-VEN-NP-OMIT", xtag: "0.2"},
-    examples: [["I wished the children found."]],
-    semantics: [{:pred, %{value: "desire"},
-      [{:args, %{},
-        [{:arg, %{type: "Event", value: "E"}, []},
-         {:arg, %{type: "ThemRole", value: "Experiencer"}, []},
-         {:arg, %{type: "ThemRole", value: "Stimulus"}, []}]}]}],
-    syntax: [{:np, %{value: "Experiencer"}, [{:synrestrs, %{}, []}]},
-     {:verb, %{}, []},
-     {:np, %{value: "Stimulus"},
-      [{:synrestrs, %{},
-        [{:synrestr, %{type: "np_ppart", value: "+"}, []}]}]}]},
-  ```
   """
 
   # Some handy module attributes for locating assets.
@@ -43,15 +19,26 @@ defmodule VerbNet do
     classdef_esc = Macro.escape(classdef)
 
     sections = VerbNet.XML.extract_sections(classdef)
-    members_esc = sections |> Map.get(:members, %{}) |> Macro.escape()
-    roles_esc = sections |> Map.get(:themroles, %{}) |> Macro.escape()
-    frames_esc = sections |> Map.get(:frames, %{}) |> Macro.escape()
+    members = sections |> Map.get(:members, %{})
+    roles = sections |> Map.get(:themroles, %{})
+    frames = sections |> Map.get(:frames, %{})
 
-    # Define lookup functions for this VerbNet class.
+    # Define basic lookup functions for this VerbNet class.
+    members_esc = members |> Macro.escape()
+    roles_esc = roles |> Macro.escape()
+    frames_esc = frames |> Macro.escape()
+
     def class(unquote(class_id)), do: unquote(classdef_esc)
     def members(unquote(class_id)), do: unquote(members_esc)
     def roles(unquote(class_id)), do: unquote(roles_esc)
     def frames(unquote(class_id)), do: unquote(frames_esc)
+
+    # Define frame lookups based on POS tags + class members.
+    members_keys = members |> Map.keys()
+    for {primary, frame} <- frames do
+      frame_esc = frame |> Map.put(:class_id, class_id) |> Macro.escape()
+      def find_frame(unquote(primary), member) when member in unquote(members_keys), do: unquote(frame_esc)
+    end
   end
 
   @doc ~S"""
@@ -135,10 +122,65 @@ defmodule VerbNet do
     invalid_class(class_id)
   end
 
+  @doc ~S"""
+  Return semantic frame from VerbNet that matches the provided primary POS pattern and class member.
+
+  On failed lookup, returns :no_match.
+
+  ## Examples
+
+      iex> VerbNet.find_frame("NP V NP", "wish")
+      %{class_id: "wish-62",
+        description: %{descriptionnumber: "8.1", primary: "NP V NP", secondary: "NP",
+          xtag: "0.2"}, examples: [["I wished it."]],
+        semantics: [{:pred, %{value: "desire"},
+          [{:args, %{},
+            [{:arg, %{type: "Event", value: "E"}, []},
+             {:arg, %{type: "ThemRole", value: "Experiencer"}, []},
+             {:arg, %{type: "ThemRole", value: "Stimulus"}, []}]}]}],
+        syntax: [{:np, %{value: "Experiencer"}, [{:synrestrs, %{}, []}]},
+         {:verb, %{}, []},
+         {:np, %{value: "Stimulus"},
+          [{:synrestrs, %{}, [{:synrestr, %{type: "sentential", value: "-"}, []}]}]}]}
+
+      iex> VerbNet.find_frame(["NP", "V", "NP"], "wish")
+      %{class_id: "wish-62",
+        description: %{descriptionnumber: "8.1", primary: "NP V NP", secondary: "NP",
+          xtag: "0.2"}, examples: [["I wished it."]],
+        semantics: [{:pred, %{value: "desire"},
+          [{:args, %{},
+            [{:arg, %{type: "Event", value: "E"}, []},
+             {:arg, %{type: "ThemRole", value: "Experiencer"}, []},
+             {:arg, %{type: "ThemRole", value: "Stimulus"}, []}]}]}],
+        syntax: [{:np, %{value: "Experiencer"}, [{:synrestrs, %{}, []}]},
+         {:verb, %{}, []},
+         {:np, %{value: "Stimulus"},
+          [{:synrestrs, %{}, [{:synrestr, %{type: "sentential", value: "-"}, []}]}]}]}
+
+      iex> VerbNet.find_frame("NP V NP", "foo")
+      :no_match
+
+  """
+  @spec find_frame(primary :: binary, member :: binary) :: map
+  def find_frame(primary, member) when is_binary(primary) do
+    no_match(primary, member)
+  end
+
+  @spec find_frame(primary :: list, member :: binary) :: map
+  def find_frame(primary, member) when is_list(primary) do
+    find_frame(Enum.join(primary, " "), member)
+  end
+
   # Util method to return :invalid_class, yet allow function specs to provide useful help.
-  # Reason: _class_id was generating "arg1" in REPLY help and docs.
+  # Reason: _class_id was generating "arg1" in REPL help and docs.
   defp invalid_class(_class_id) do
     :invalid_class
+  end
+
+  # Util method to return :no_match, yet allow function specs to provide useful help.
+  # Reason: _primary, _member was generating "arg1, arg2" in REPL help and docs.
+  defp no_match(_primary, _member) do
+    :no_match
   end
 
 end
