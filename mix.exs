@@ -51,7 +51,7 @@ defmodule VerbNet.Mixfile do
 
   defp description do
     """
-    This module provides a lookup interface into the VerbNet semantic mapping dataset.
+    This module provides a lookup interface into the VerbNet semantic mapping dataset for natural language processing (NLP) solutions.
     """
   end
 
