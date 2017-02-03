@@ -19,33 +19,30 @@ defmodule VerbNet do
   |> Enum.map(fn({:ok, class_list}) -> class_list end)
   |> List.flatten()
 
-  # Process each class extracted from the XML.
-  for {class_id, classdef, sections} <- classes do
+  # Process each class extracted from the XML, generate basic class info lookups and collect all frame-member mappings.
+  all_frames = for {class_id, classdef, sections} <- classes do
     # Extract the sections into values we can unquote.
     members = sections |> Map.get(:members, %{})
     roles = sections |> Map.get(:themroles, %{})
     frames = sections |> Map.get(:frames, %{})
 
-    # Escape complex data structures for unquoting.
-    classdef_esc = Macro.escape(classdef)
-    members_esc = members |> Macro.escape()
-    roles_esc = roles |> Macro.escape()
-    frames_esc = frames |> Macro.escape()
-
     # Define basic lookup functions for this VerbNet class.
-    def class(unquote(class_id)), do: unquote(classdef_esc)
-    def members(unquote(class_id)), do: unquote(members_esc)
-    def roles(unquote(class_id)), do: unquote(roles_esc)
-    def frames(unquote(class_id)), do: unquote(frames_esc)
+    def class(unquote(class_id)), do: unquote(Macro.escape(classdef))
+    def members(unquote(class_id)), do: unquote(Macro.escape(members))
+    def roles(unquote(class_id)), do: unquote(Macro.escape(roles))
+    def frames(unquote(class_id)), do: unquote(Macro.escape(frames))
 
-    # Define frame lookups based on POS tags + class members, if we have class members.
-    if !Enum.empty?(members) do
-      members_keys = members |> Map.keys()
-      for {primary, frame} <- frames do
-        frame_esc = frame |> Map.put(:class_id, class_id) |> Macro.escape()
-        def find_frame(unquote(primary), member) when member in unquote(members_keys), do: unquote(frame_esc)
-      end
+    # Aggregate frame-member mappings for return.
+    for {primary, frame} <- frames, member <- members |> Map.keys() do
+      {primary, member, Map.put(frame, :class_id, class_id)}
     end
+  end
+  |> List.flatten()
+  |> Enum.reduce(%{}, fn({primary, member, frame}, acc) -> Map.update(acc, {primary, member}, [frame], fn(frames) -> [frame] ++ frames end) end)
+
+  # Now generate frame-member lookups.
+  for {{primary, member}, frames} <- all_frames do
+    def find_frame(unquote(primary), unquote(member)), do: unquote(Macro.escape(frames))
   end
 
   # End timer
