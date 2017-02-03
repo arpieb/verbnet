@@ -4,6 +4,30 @@ defmodule VerbNet.XML do
   """
 
   @doc ~S"""
+  Asynchronous callback to process XML file into tuple.
+  """
+  def process_xml(fname) do
+    # Note that we're not error-trapping.
+    # If the VerbNet XML fails to parse, we treat that as a compile error.
+    {:ok, vn_class, _rest} = File.read!(fname) |> :erlsom.simple_form()
+
+    # Recursively extract classes from XML data.
+    simpleform_to_map(vn_class)
+    |> extract_classes()
+  end
+
+  @doc ~S"""
+  Recursive function to extract classes from XML.
+  """
+  def extract_classes({_tag, %{id: class_id}, classdef}) do
+    sections = extract_sections(classdef)
+    subclasses = Map.get(sections, :subclasses, [])
+    |> Enum.map(&extract_classes/1)
+
+    [{class_id, classdef, extract_sections(classdef)} | subclasses]
+  end
+
+  @doc ~S"""
   Converts an erlsom SimpleFormElement into something more Elixir friendly.
   """
   def simpleform_to_map({tag, attrs, content}) do
@@ -45,12 +69,17 @@ defmodule VerbNet.XML do
   end
 
   @doc ~S"""
-  Extract sections for VerbNet class into a map, keyed by section.
+  Extract sections of interest for VerbNet class into a map, keyed by section.
   """
   def extract_sections(classdef) do
     classdef
     |> Enum.map(&extract_section/1)
     |> Map.new()
+  end
+
+  # Extract the content from the SUBCLASSES section of the parsed XML.
+  defp extract_section({:subclasses, _attrs, members}) do
+    {:subclasses, members}
   end
 
   # Extract the content from the MEMBERS section of the parsed XML.

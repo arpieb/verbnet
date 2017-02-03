@@ -7,39 +7,50 @@ defmodule VerbNet do
   # Some handy module attributes for locating assets.
   @external_resource verbnet_xml_path = Path.join([__DIR__, "..", "assets", "verbnet"])
 
+  # Start timer
+  start = System.monotonic_time()
+
   # Load and parse each VerbNet class XML.
-  #for fname <- Enum.take(Path.wildcard(Path.join([verbnet_xml_path, "*.xml"])), 1) do
-  for fname <- Path.wildcard(Path.join([verbnet_xml_path, "*.xml"])) do
-    # Note that we're not error-trapping.
-    # If the VerbNet XML fails to parse, we treat that as a compile error.
-    {:ok, vn_class, _rest} = File.read!(fname) |> :erlsom.simple_form()
+  Code.ensure_compiled(VerbNet.XML)
+  classes = Path.join([verbnet_xml_path, "*.xml"])
+  |> Path.wildcard()
+  |> Task.async_stream(VerbNet.XML, :process_xml, [])
+  |> Enum.to_list()
+  |> Enum.map(fn({:ok, class_list}) -> class_list end)
+  |> List.flatten()
 
-    # Postprocess the erlsom tuple into values we can unquote.
-    {:vnclass, %{id: class_id}, classdef} = VerbNet.XML.simpleform_to_map(vn_class)
-    classdef_esc = Macro.escape(classdef)
-
-    sections = VerbNet.XML.extract_sections(classdef)
+  # Process each class extracted from the XML.
+  for {class_id, classdef, sections} <- classes do
+    # Extract the sections into values we can unquote.
     members = sections |> Map.get(:members, %{})
     roles = sections |> Map.get(:themroles, %{})
     frames = sections |> Map.get(:frames, %{})
 
-    # Define basic lookup functions for this VerbNet class.
+    # Escape complex data structures for unquoting.
+    classdef_esc = Macro.escape(classdef)
     members_esc = members |> Macro.escape()
     roles_esc = roles |> Macro.escape()
     frames_esc = frames |> Macro.escape()
 
+    # Define basic lookup functions for this VerbNet class.
     def class(unquote(class_id)), do: unquote(classdef_esc)
     def members(unquote(class_id)), do: unquote(members_esc)
     def roles(unquote(class_id)), do: unquote(roles_esc)
     def frames(unquote(class_id)), do: unquote(frames_esc)
 
-    # Define frame lookups based on POS tags + class members.
-    members_keys = members |> Map.keys()
-    for {primary, frame} <- frames do
-      frame_esc = frame |> Map.put(:class_id, class_id) |> Macro.escape()
-      def find_frame(unquote(primary), member) when member in unquote(members_keys), do: unquote(frame_esc)
+    # Define frame lookups based on POS tags + class members, if we have class members.
+    if !Enum.empty?(members) do
+      members_keys = members |> Map.keys()
+      for {primary, frame} <- frames do
+        frame_esc = frame |> Map.put(:class_id, class_id) |> Macro.escape()
+        def find_frame(unquote(primary), member) when member in unquote(members_keys), do: unquote(frame_esc)
+      end
     end
   end
+
+  # End timer
+  elapsed = (System.monotonic_time() - start) |> System.convert_time_unit(:native, :millisecond)
+  IO.puts "Codified #{Enum.count(classes)} VerbNet classes in #{elapsed}ms"
 
   @doc ~S"""
   Return complete raw map of the entire VerbNet class.
