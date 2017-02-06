@@ -1,6 +1,6 @@
 # VerbNet
 
-[![Hex.pm](https://img.shields.io/hexpm/v/verbnet.svg)](https://hex.pm/packages/verbnet) [![Build Status](https://travis-ci.org/arpieb/verbnet.svg?branch=master)](https://travis-ci.org/arpieb/verbnet)
+[![Hex.pm](https://img.shields.io/hexpm/v/verbnet.svg)](https://hex.pm/packages/verbnet)
 
 **VerbNet** provides a semantic map that allows an [NLP](https://en.wikipedia.org/wiki/Natural_language_processing) 
 solution to take a tokenized and [part-of-speech (POS)](https://en.wikipedia.org/wiki/Part_of_speech) tagged sentence 
