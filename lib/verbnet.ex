@@ -21,18 +21,31 @@ defmodule VerbNet do
 
   # Process each class extracted from the XML, generate basic class info lookups and collect all frame-member mappings.
   all_frames = for {class_id, classdef, sections} <- classes do
-    # Extract the sections into values we can unquote.
-    members = sections |> Map.get(:members, %{})
-    roles = sections |> Map.get(:themroles, %{})
-    frames = sections |> Map.get(:frames, %{})
-
     # Define basic lookup functions for this VerbNet class.
     def class(unquote(class_id)), do: unquote(Macro.escape(classdef))
-    def members(unquote(class_id)), do: unquote(Macro.escape(members))
-    def roles(unquote(class_id)), do: unquote(Macro.escape(roles))
-    def frames(unquote(class_id)), do: unquote(Macro.escape(frames))
+    defp sections(unquote(class_id)), do: unquote(Macro.escape(sections))
+    def members(unquote(class_id)) do
+      case sections(unquote(class_id)) do
+        %{members: retval} -> retval
+        _ -> invalid_class(unquote(class_id))
+      end
+    end
+    def roles(unquote(class_id)) do
+      case sections(unquote(class_id)) do
+        %{themroles: retval} -> retval
+        _ -> invalid_class(unquote(class_id))
+      end
+    end
+    def frames(unquote(class_id)) do
+      case sections(unquote(class_id)) do
+        %{frames: retval} -> retval
+        _ -> invalid_class(unquote(class_id))
+      end
+    end
 
     # Aggregate frame-member mappings for return.
+    members = sections |> Map.get(:members, %{})
+    frames = sections |> Map.get(:frames, %{})
     for {primary, frame} <- frames, member <- members |> Map.keys() do
       {primary, member, Map.put(frame, :class_id, class_id)}
     end
@@ -40,9 +53,55 @@ defmodule VerbNet do
   |> List.flatten()
   |> Enum.reduce(%{}, fn({primary, member, frame}, acc) -> Map.update(acc, {primary, member}, [frame], fn(frames) -> [frame] ++ frames end) end)
 
-  # Now generate frame-member lookups.
-  for {{primary, member}, frames} <- all_frames do
-    def find_frame(unquote(primary), unquote(member)), do: unquote(Macro.escape(frames))
+  @doc ~S"""
+  Return semantic frame from VerbNet that matches the provided primary POS pattern and class member.
+
+  On failed lookup, returns :no_match.
+
+  ## Examples
+
+      iex> VerbNet.find_frame("NP V NP", "wish")
+      [%{class_id: "wish-62",
+         description: %{descriptionnumber: "8.1", primary: "NP V NP", secondary: "NP",
+           xtag: "0.2"}, examples: [["I wished it."]],
+         semantics: [{:pred, %{value: "desire"},
+           [{:args, %{},
+             [{:arg, %{type: "Event", value: "E"}, []},
+              {:arg, %{type: "ThemRole", value: "Experiencer"}, []},
+              {:arg, %{type: "ThemRole", value: "Stimulus"}, []}]}]}],
+         syntax: [{:np, %{value: "Experiencer"}, [{:synrestrs, %{}, []}]},
+          {:verb, %{}, []},
+          {:np, %{value: "Stimulus"},
+           [{:synrestrs, %{},
+             [{:synrestr, %{type: "sentential", value: "-"}, []}]}]}]}]
+
+      iex> VerbNet.find_frame(["NP", "V", "NP"], "wish")
+      [%{class_id: "wish-62",
+         description: %{descriptionnumber: "8.1", primary: "NP V NP", secondary: "NP",
+           xtag: "0.2"}, examples: [["I wished it."]],
+         semantics: [{:pred, %{value: "desire"},
+           [{:args, %{},
+             [{:arg, %{type: "Event", value: "E"}, []},
+              {:arg, %{type: "ThemRole", value: "Experiencer"}, []},
+              {:arg, %{type: "ThemRole", value: "Stimulus"}, []}]}]}],
+         syntax: [{:np, %{value: "Experiencer"}, [{:synrestrs, %{}, []}]},
+          {:verb, %{}, []},
+          {:np, %{value: "Stimulus"},
+           [{:synrestrs, %{},
+             [{:synrestr, %{type: "sentential", value: "-"}, []}]}]}]}]
+
+      iex> VerbNet.find_frame("NP V NP", "foo")
+      :no_match
+
+  """
+  @spec find_frame(primary :: binary, member :: binary) :: map
+  def find_frame(primary, member) when is_binary(primary) do
+    Map.get(unquote(Macro.escape(all_frames)), {primary, member}, :no_match)
+  end
+
+  @spec find_frame(primary :: list, member :: binary) :: map
+  def find_frame(primary, member) when is_list(primary) do
+    find_frame(Enum.join(primary, " "), member)
   end
 
   # End timer
@@ -130,65 +189,10 @@ defmodule VerbNet do
     invalid_class(class_id)
   end
 
-  @doc ~S"""
-  Return semantic frame from VerbNet that matches the provided primary POS pattern and class member.
-
-  On failed lookup, returns :no_match.
-
-  ## Examples
-
-      iex> VerbNet.find_frame("NP V NP", "wish")
-      %{class_id: "wish-62",
-        description: %{descriptionnumber: "8.1", primary: "NP V NP", secondary: "NP",
-          xtag: "0.2"}, examples: [["I wished it."]],
-        semantics: [{:pred, %{value: "desire"},
-          [{:args, %{},
-            [{:arg, %{type: "Event", value: "E"}, []},
-             {:arg, %{type: "ThemRole", value: "Experiencer"}, []},
-             {:arg, %{type: "ThemRole", value: "Stimulus"}, []}]}]}],
-        syntax: [{:np, %{value: "Experiencer"}, [{:synrestrs, %{}, []}]},
-         {:verb, %{}, []},
-         {:np, %{value: "Stimulus"},
-          [{:synrestrs, %{}, [{:synrestr, %{type: "sentential", value: "-"}, []}]}]}]}
-
-      iex> VerbNet.find_frame(["NP", "V", "NP"], "wish")
-      %{class_id: "wish-62",
-        description: %{descriptionnumber: "8.1", primary: "NP V NP", secondary: "NP",
-          xtag: "0.2"}, examples: [["I wished it."]],
-        semantics: [{:pred, %{value: "desire"},
-          [{:args, %{},
-            [{:arg, %{type: "Event", value: "E"}, []},
-             {:arg, %{type: "ThemRole", value: "Experiencer"}, []},
-             {:arg, %{type: "ThemRole", value: "Stimulus"}, []}]}]}],
-        syntax: [{:np, %{value: "Experiencer"}, [{:synrestrs, %{}, []}]},
-         {:verb, %{}, []},
-         {:np, %{value: "Stimulus"},
-          [{:synrestrs, %{}, [{:synrestr, %{type: "sentential", value: "-"}, []}]}]}]}
-
-      iex> VerbNet.find_frame("NP V NP", "foo")
-      :no_match
-
-  """
-  @spec find_frame(primary :: binary, member :: binary) :: map
-  def find_frame(primary, member) when is_binary(primary) do
-    no_match(primary, member)
-  end
-
-  @spec find_frame(primary :: list, member :: binary) :: map
-  def find_frame(primary, member) when is_list(primary) do
-    find_frame(Enum.join(primary, " "), member)
-  end
-
   # Util method to return :invalid_class, yet allow function specs to provide useful help.
   # Reason: _class_id was generating "arg1" in REPL help and docs.
   defp invalid_class(_class_id) do
     :invalid_class
-  end
-
-  # Util method to return :no_match, yet allow function specs to provide useful help.
-  # Reason: _primary, _member was generating "arg1, arg2" in REPL help and docs.
-  defp no_match(_primary, _member) do
-    :no_match
   end
 
 end
