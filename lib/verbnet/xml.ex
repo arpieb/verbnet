@@ -1,7 +1,5 @@
 defmodule VerbNet.XML do
-  @moduledoc ~S"""
-  Utility functions to assist in compiling VerbNet from source XML.
-  """
+  @moduledoc false
 
   @doc ~S"""
   Asynchronous callback to process XML file into tuple.

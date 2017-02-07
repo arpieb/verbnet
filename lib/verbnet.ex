@@ -8,6 +8,7 @@ defmodule VerbNet do
   @external_resource verbnet_xml_path = Path.join([__DIR__, "..", "assets", "verbnet"])
 
   # Start timer
+  IO.puts("Compiling VerbNet XML to static lookups takes a while...")
   start = System.monotonic_time()
 
   # Load and parse each VerbNet class XML.
@@ -105,8 +106,8 @@ defmodule VerbNet do
   end
 
   # End timer
-  elapsed = (System.monotonic_time() - start) |> System.convert_time_unit(:native, :millisecond)
-  IO.puts "Codified #{Enum.count(classes)} VerbNet classes in #{elapsed}ms"
+  elapsed = (System.monotonic_time() - start) |> System.convert_time_unit(:native, :seconds)
+  IO.puts("Codified #{Enum.count(classes)} VerbNet classes in #{elapsed}s")
 
   @doc ~S"""
   Return complete raw map of the entire VerbNet class.
