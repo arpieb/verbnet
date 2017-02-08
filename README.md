@@ -2,14 +2,12 @@
 
 [![Hex.pm](https://img.shields.io/hexpm/v/verbnet.svg)](https://hex.pm/packages/verbnet)
 
-**VerbNet** provides a semantic map that allows an [NLP](https://en.wikipedia.org/wiki/Natural_language_processing) 
+The **VerbNet** package provides semantic framing lookups using the [VerbNet](https://verbs.colorado.edu/~mpalmer/projects/verbnet.html) dataset (see `assets/verbnet` for license and any documentation provided by the creators).  This allows an [NLP](https://en.wikipedia.org/wiki/Natural_language_processing) 
 solution to take a tokenized and [part-of-speech (POS)](https://en.wikipedia.org/wiki/Part_of_speech) tagged sentence 
-and attempt to map the semantics of the sentence (context, thematic roles, etc) using the identified main verb and a POS
-pattern.
+and attempt to map the semantics of the sentence (context, thematic roles, etc) using the identified root verb and a POS pattern.
 
 For example, the sentence, "I wished the children found," would be tokenized + tagged by an external parser into the 
-pattern "NP V NP ADJ" using [Penn Treebank II tags](http://www.clips.ua.ac.be/pages/mbsp-tags) with a root verb of "wish."  
-This subsequently could be matched to the following VerbNet frame which maps the parts of speech to thematic roles:
+pattern "NP V NP ADJ" using [Penn Treebank II tags](http://www.clips.ua.ac.be/pages/mbsp-tags) with a root verb of "wish."  This subsequently could be matched to the following **VerbNet** frame which maps the parts of speech to thematic roles:
 
 ```
 "NP V NP ADJ" => %{description: %{descriptionnumber: "8.1",
@@ -38,10 +36,11 @@ def deps do
 end
 ```
 
+**NOTE:** Initial compilation of the package will take quite a while (~90-120s) due to the large number of function heads created and the amount of static data being embedded in code.  If anyone has suggestions as to how to speed this up, _please_ open an issue or better yet create a pull request!  On the other hand, lookups are incredibly fast and concurrent-friendly (static data in pattern-matched function heads), so maybe this isn't such a hardship. :)
+
 ## Usage
 
-The **VerbNet** package us intended to be used by NLP solutions to perform lookups or cross-references within the 
-semantic network provided by the CSU VerbNet dataset (see `assets/verbnet` for license and any documentation).  Basic API overview is:
+Basic API overview:
 
 ```elixir
 # Return raw class map representation of class "wish-62" loaded from VerbNet file wish-62.xml.
@@ -56,7 +55,7 @@ VerbNet.roles("wish-62")
 # Return frames defined in the "wish-62" class.
 VerbNet.frames("wish-62")
 
-# Attempt to find a frame that matches the POS structure and root verb of a phrase.
+# Attempt to find frame(s) that match the POS structure and root verb of a phrase.
 VerbNet.find_frame("NP V NP", "wish")
 ```
 
