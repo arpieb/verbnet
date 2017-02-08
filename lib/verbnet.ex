@@ -15,7 +15,7 @@ defmodule VerbNet do
   Code.ensure_compiled(VerbNet.XML)
   classes = Path.join([verbnet_xml_path, "*.xml"])
   |> Path.wildcard()
-  |> Task.async_stream(VerbNet.XML, :process_xml, [])
+  |> Task.async_stream(VerbNet.XML, :process_xml, [], timeout: 10_000)
   |> Enum.to_list()
   |> Enum.map(fn({:ok, class_list}) -> class_list end)
   |> List.flatten()
