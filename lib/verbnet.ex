@@ -21,24 +21,23 @@ defmodule VerbNet do
   |> List.flatten()
 
   # Process each class extracted from the XML, generate basic class info lookups and collect all frame-member mappings.
-  all_frames = for {class_id, classdef, sections} <- classes do
+  all_frames = for {class_id, sections} <- classes do
     # Define basic lookup functions for this VerbNet class.
-    def class(unquote(class_id)), do: unquote(Macro.escape(classdef))
-    defp sections(unquote(class_id)), do: unquote(Macro.escape(sections))
+    def class(unquote(class_id)), do: unquote(Macro.escape(sections))
     def members(unquote(class_id)) do
-      case sections(unquote(class_id)) do
+      case class(unquote(class_id)) do
         %{members: retval} -> retval
         _ -> invalid_class(unquote(class_id))
       end
     end
     def roles(unquote(class_id)) do
-      case sections(unquote(class_id)) do
+      case class(unquote(class_id)) do
         %{themroles: retval} -> retval
         _ -> invalid_class(unquote(class_id))
       end
     end
     def frames(unquote(class_id)) do
-      case sections(unquote(class_id)) do
+      case class(unquote(class_id)) do
         %{frames: retval} -> retval
         _ -> invalid_class(unquote(class_id))
       end
