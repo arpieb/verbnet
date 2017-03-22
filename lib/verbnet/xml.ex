@@ -22,7 +22,7 @@ defmodule VerbNet.XML do
     subclasses = Map.get(sections, :subclasses, [])
     |> Enum.map(&extract_classes/1)
 
-    [{class_id, classdef, extract_sections(classdef)} | subclasses]
+    [{class_id, sections} | subclasses]
   end
 
   @doc ~S"""
