@@ -32,7 +32,7 @@ by adding `verbnet` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
-  [{:verbnet, "~> 0.1.0"}]
+  [{:verbnet, "~> 0.3.0"}]
 end
 ```
 
@@ -56,7 +56,7 @@ VerbNet.roles("wish-62")
 VerbNet.frames("wish-62")
 
 # Attempt to find frame(s) that match the POS structure and root verb of a phrase.
-VerbNet.find_frame("NP V NP", "wish")
+VerbNet.find_frames("NP V NP", "wish")
 ```
 
 ## Contributing
