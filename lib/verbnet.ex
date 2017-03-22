@@ -15,34 +15,16 @@ defmodule VerbNet do
   Code.ensure_compiled(VerbNet.XML)
   classes = Path.join([verbnet_xml_path, "*.xml"])
   |> Path.wildcard()
-  |> Task.async_stream(VerbNet.XML, :process_xml, [], timeout: 10_000)
+  |> Task.async_stream(VerbNet.XML, :process_xml, [], timeout: 60_000)
   |> Enum.to_list()
   |> Enum.map(fn({:ok, class_list}) -> class_list end)
   |> List.flatten()
 
   # Process each class extracted from the XML, generate basic class info lookups and collect all frame-member mappings.
-  IO.puts("Processing #{Enum.count(classes)} VerbNet classes")
+  IO.puts("Processing #{Enum.count(classes)} parsed VerbNet classes")
   all_frames = for {class_id, sections} <- classes do
     # Define basic lookup functions for this VerbNet class.
     def class(unquote(class_id)), do: unquote(Macro.escape(sections))
-    def members(unquote(class_id)) do
-      case class(unquote(class_id)) do
-        %{members: retval} -> retval
-        _ -> invalid_class(unquote(class_id))
-      end
-    end
-    def roles(unquote(class_id)) do
-      case class(unquote(class_id)) do
-        %{themroles: retval} -> retval
-        _ -> invalid_class(unquote(class_id))
-      end
-    end
-    def frames(unquote(class_id)) do
-      case class(unquote(class_id)) do
-        %{frames: retval} -> retval
-        _ -> invalid_class(unquote(class_id))
-      end
-    end
 
     # Aggregate frame-member mappings for return.
     members = sections |> Map.get(:members, %{})
@@ -56,25 +38,23 @@ defmodule VerbNet do
 
   # Now generate our function heads for frame lookups
   IO.puts("Processing #{Enum.count(all_frames)} VerbNet frames")
-  for {{primary, member}, class_ids} <- all_frames do
-#    IO.puts("#{primary}\t#{member}\t#{class_ids}")
-#    def find_frame(unquote(primary), unquote(member)) do
-#      find_frames(unquote(primary), unquote(class_ids))
-#    end
+
+  def find_frames(primary, member) when is_binary(primary) do
+    Map.get(unquote(Macro.escape(all_frames)), {primary, member}, []) |> aggregate_class_frames(primary)
   end
 
   # End timer
-  elapsed = (System.monotonic_time() - start) |> System.convert_time_unit(:native, :seconds)
-  IO.puts("Codified VerbNet classes in #{elapsed}s")
+  elapsed = (System.monotonic_time() - start) |> System.convert_time_unit(:native, :millisecond)
+  IO.puts("Codified VerbNet classes in #{elapsed}ms")
 
   @doc ~S"""
   Return semantic frame from VerbNet that matches the provided primary POS pattern and class member.
 
-  On failed lookup, returns :no_match.
+  On failed lookup, returns an empty list.
 
   ## Examples
 
-      iex> VerbNet.find_frame("NP V NP", "wish")
+      iex> VerbNet.find_frames("NP V NP", "wish")
       [%{class_id: "wish-62",
          description: %{descriptionnumber: "8.1", primary: "NP V NP", secondary: "NP",
            xtag: "0.2"}, examples: [["I wished it."]],
@@ -89,7 +69,7 @@ defmodule VerbNet do
            [{:synrestrs, %{},
              [{:synrestr, %{type: "sentential", value: "-"}, []}]}]}]}]
 
-      iex> VerbNet.find_frame(["NP", "V", "NP"], "wish")
+      iex> VerbNet.find_frames(["NP", "V", "NP"], "wish")
       [%{class_id: "wish-62",
          description: %{descriptionnumber: "8.1", primary: "NP V NP", secondary: "NP",
            xtag: "0.2"}, examples: [["I wished it."]],
@@ -104,27 +84,24 @@ defmodule VerbNet do
            [{:synrestrs, %{},
              [{:synrestr, %{type: "sentential", value: "-"}, []}]}]}]}]
 
-      iex> VerbNet.find_frame("NP V NP", "foo")
-      :no_match
+      iex> VerbNet.find_frames("NP V NP", "foo")
+      []
 
   """
-  @spec find_frame(primary :: binary, member :: binary) :: map
-  def find_frame(primary, member) when is_binary(primary) do
-    no_match(primary, member)
-  end
-
-  @spec find_frame(primary :: list, member :: binary) :: map
-  def find_frame(primary, member) when is_list(primary) do
-    find_frame(Enum.join(primary, " "), member)
+  @spec find_frames(primary :: binary, member :: binary) :: list
+  @spec find_frames(primary :: list, member :: binary) :: list
+  def find_frames(primary, member) when is_list(primary) do
+    find_frames(Enum.join(primary, " "), member)
   end
 
   @doc ~S"""
-  Return complete raw map of the entire VerbNet class.
+  Return complete raw map of an entire VerbNet class.
 
   On failed lookup, returns :invalid_class.
   """
   @spec class(class_id :: binary) :: map
   def class(class_id) do
+    # To shut up the compiler and make docs generate properly...
     invalid_class(class_id)
   end
 
@@ -154,7 +131,10 @@ defmodule VerbNet do
   """
   @spec members(class_id :: binary) :: map
   def members(class_id) do
-    invalid_class(class_id)
+    case class(class_id) do
+      %{members: retval} -> retval
+        _ -> :invalid_class
+    end
   end
 
   @doc ~S"""
@@ -176,7 +156,10 @@ defmodule VerbNet do
   """
   @spec roles(class_id :: binary) :: map
   def roles(class_id) do
-    invalid_class(class_id)
+      case class(class_id) do
+        %{themroles: retval} -> retval
+        _ -> :invalid_class
+      end
   end
 
   @doc ~S"""
@@ -196,21 +179,19 @@ defmodule VerbNet do
   """
   @spec frames(class_id :: binary) :: list
   def frames(class_id) do
-    invalid_class(class_id)
+      case class(class_id) do
+        %{frames: retval} -> retval
+        _ -> :invalid_class
+      end
   end
 
-  # Util method to return :invalid_class, yet allow function specs to provide useful help.
+  # Util method to remove compiler warnings re unused params AND allow ExDoc to generate properly.
   defp invalid_class(_class_id) do
     :invalid_class
   end
 
-  # Util method to return ::no_match, yet allow function specs to provide useful help.
-  defp no_match(_primary, _member) do
-    :no_match
-  end
-
   # Internal lookup method called by pattern-matched function heads.
-  defp find_frames(primary, class_ids) do
+  defp aggregate_class_frames(class_ids, primary) do
     for class_id <- class_ids do
       frames(class_id) |> Map.get(primary) |> Map.put(:class_id, class_id)
     end
